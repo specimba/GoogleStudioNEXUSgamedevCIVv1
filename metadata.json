@@ -1,0 +1,6 @@
+{
+  "name": "AI 4X Strategy Game Spectator",
+  "description": "An interactive, AI-driven 4X spectator simulation of ancient civilizations clashing, featuring real-time visual decision overlays, dynamic war fronts, and a sports-commentary-style narrator powered by Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
