@@ -30,7 +30,8 @@ import {
   Database,
   Mic,
   Volume2,
-  VolumeX
+  VolumeX,
+  Handshake
 } from "lucide-react";
 import { 
   HexTile, 
@@ -202,7 +203,28 @@ function getNeighbors(x: number, y: number): { x: number, y: number }[] {
     .filter(n => n.x >= 0 && n.x < MAP_WIDTH && n.y >= 0 && n.y < MAP_HEIGHT);
 }
 
-function generateInitialGrid(): HexTile[][] {
+function getDynamicStartingPositions() {
+  const rX = 1 + Math.floor(Math.random() * 2); // 1 or 2
+  const rY = 1 + Math.floor(Math.random() * 2); // 1 or 2
+
+  const hX = (MAP_WIDTH - 2) - Math.floor(Math.random() * 2); // 11 or 12
+  const hY = 1 + Math.floor(Math.random() * 2); // 1 or 2
+
+  const mX = 1 + Math.floor(Math.random() * 2); // 1 or 2
+  const mY = (MAP_HEIGHT - 2) - Math.floor(Math.random() * 2); // 6 or 7
+
+  const vX = (MAP_WIDTH - 2) - Math.floor(Math.random() * 2); // 11 or 12
+  const vY = (MAP_HEIGHT - 2) - Math.floor(Math.random() * 2); // 6 or 7
+
+  return {
+    rome: { x: rX, y: rY },
+    han: { x: hX, y: hY },
+    maya: { x: mX, y: mY },
+    viking: { x: vX, y: vY }
+  };
+}
+
+function generateInitialGrid(startPositions?: any): HexTile[][] {
   const grid: HexTile[][] = [];
   
   for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -242,21 +264,30 @@ function generateInitialGrid(): HexTile[][] {
   }
 
   // Ensure starting locations have suitable grass/forest
-  const starts = [
-    { x: 1, y: 1 }, // Rome
-    { x: 12, y: 1 }, // Han
-    { x: 2, y: 7 }, // Maya
-    { x: 11, y: 7 } // Viking
+  const starts = startPositions ? [
+    startPositions.rome,
+    startPositions.han,
+    startPositions.maya,
+    startPositions.viking
+  ] : [
+    { x: 1, y: 1 }, // Rome fallback
+    { x: 12, y: 1 }, // Han fallback
+    { x: 2, y: 7 }, // Maya fallback
+    { x: 11, y: 7 } // Viking fallback
   ];
 
   starts.forEach(pos => {
-    grid[pos.y][pos.x].terrain = "GRASS";
-    // Neighbors are clear for exploration
-    getNeighbors(pos.x, pos.y).forEach(n => {
-      if (grid[n.y][n.x].terrain === "MOUNTAIN") {
-        grid[n.y][n.x].terrain = "FOREST";
-      }
-    });
+    if (grid[pos.y]?.[pos.x]) {
+      grid[pos.y][pos.x].terrain = "GRASS";
+      // Neighbors are clear for exploration
+      getNeighbors(pos.x, pos.y).forEach(n => {
+        if (grid[n.y]?.[n.x]) {
+          if (grid[n.y][n.x].terrain === "MOUNTAIN" || grid[n.y][n.x].terrain === "OCEAN") {
+            grid[n.y][n.x].terrain = "FOREST";
+          }
+        }
+      });
+    }
   });
 
   return grid;
@@ -267,23 +298,42 @@ function generateInitialGrid(): HexTile[][] {
 // -----------------------------------------------------------------------------
 export default function App() {
   const [gameState, setGameState] = useState<GameState>(() => {
-    const grid = generateInitialGrid();
+    const startPositions = getDynamicStartingPositions();
+    const grid = generateInitialGrid(startPositions);
     
     // Starting units
     const initialUnits: Unit[] = [
       // Rome
-      { id: "u_rome_s", uniqueId: "unit_u_rome_s", type: "SETTLER", ownerId: "rome", x: 1, y: 1, health: 100, hasMoved: false, combatStrength: 0 },
-      { id: "u_rome_w", uniqueId: "unit_u_rome_w", type: "WARRIOR", ownerId: "rome", x: 2, y: 1, health: 100, hasMoved: false, combatStrength: 12 },
+      { id: "u_rome_s", uniqueId: "unit_u_rome_s", type: "SETTLER", ownerId: "rome", x: startPositions.rome.x, y: startPositions.rome.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_rome_w", uniqueId: "unit_u_rome_w", type: "WARRIOR", ownerId: "rome", x: startPositions.rome.x + 1, y: startPositions.rome.y, health: 100, hasMoved: false, combatStrength: 12 },
       // Han
-      { id: "u_han_s", uniqueId: "unit_u_han_s", type: "SETTLER", ownerId: "han", x: 12, y: 1, health: 100, hasMoved: false, combatStrength: 0 },
-      { id: "u_han_w", uniqueId: "unit_u_han_w", type: "WARRIOR", ownerId: "han", x: 11, y: 1, health: 100, hasMoved: false, combatStrength: 12 },
+      { id: "u_han_s", uniqueId: "unit_u_han_s", type: "SETTLER", ownerId: "han", x: startPositions.han.x, y: startPositions.han.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_han_w", uniqueId: "unit_u_han_w", type: "WARRIOR", ownerId: "han", x: startPositions.han.x - 1, y: startPositions.han.y, health: 100, hasMoved: false, combatStrength: 12 },
       // Maya
-      { id: "u_maya_s", uniqueId: "unit_u_maya_s", type: "SETTLER", ownerId: "maya", x: 2, y: 7, health: 100, hasMoved: false, combatStrength: 0 },
-      { id: "u_maya_w", uniqueId: "unit_u_maya_w", type: "WARRIOR", ownerId: "maya", x: 3, y: 7, health: 100, hasMoved: false, combatStrength: 12 },
+      { id: "u_maya_s", uniqueId: "unit_u_maya_s", type: "SETTLER", ownerId: "maya", x: startPositions.maya.x, y: startPositions.maya.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_maya_w", uniqueId: "unit_u_maya_w", type: "WARRIOR", ownerId: "maya", x: startPositions.maya.x + 1, y: startPositions.maya.y, health: 100, hasMoved: false, combatStrength: 12 },
       // Viking
-      { id: "u_viking_s", uniqueId: "unit_u_viking_s", type: "SETTLER", ownerId: "viking", x: 11, y: 7, health: 100, hasMoved: false, combatStrength: 0 },
-      { id: "u_viking_w", uniqueId: "unit_u_viking_w", type: "WARRIOR", ownerId: "viking", x: 10, y: 7, health: 100, hasMoved: false, combatStrength: 12 }
+      { id: "u_viking_s", uniqueId: "unit_u_viking_s", type: "SETTLER", ownerId: "viking", x: startPositions.viking.x, y: startPositions.viking.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_viking_w", uniqueId: "unit_u_viking_w", type: "WARRIOR", ownerId: "viking", x: startPositions.viking.x - 1, y: startPositions.viking.y, health: 100, hasMoved: false, combatStrength: 12 }
     ];
+
+    // Force warrior positions to be valid neighbors
+    const warriorSetups = [
+      { id: "u_rome_w", x: startPositions.rome.x, y: startPositions.rome.y },
+      { id: "u_han_w", x: startPositions.han.x, y: startPositions.han.y },
+      { id: "u_maya_w", x: startPositions.maya.x, y: startPositions.maya.y },
+      { id: "u_viking_w", x: startPositions.viking.x, y: startPositions.viking.y }
+    ];
+
+    warriorSetups.forEach(w => {
+      const neighbors = getNeighbors(w.x, w.y);
+      const suitable = neighbors.find(n => grid[n.y]?.[n.x]?.terrain !== "MOUNTAIN" && grid[n.y]?.[n.x]?.terrain !== "OCEAN");
+      const unit = initialUnits.find(u => u.id === w.id);
+      if (unit && suitable) {
+        unit.x = suitable.x;
+        unit.y = suitable.y;
+      }
+    });
 
     const initialEvent: GameEvent = {
       id: "e_init",
@@ -306,7 +356,12 @@ export default function App() {
       width: MAP_WIDTH,
       height: MAP_HEIGHT,
       grid,
-      civs: INITIAL_CIVS,
+      civs: INITIAL_CIVS.map(c => ({
+        ...c,
+        researchedTechs: [...c.researchedTechs],
+        diplomaticPostures: { ...c.diplomaticPostures },
+        warPlans: { ...c.warPlans }
+      })),
       cities: [],
       units: initialUnits,
       events: [initialEvent],
@@ -330,15 +385,162 @@ export default function App() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [chronicleFilter, setChronicleFilter] = useState<"ALL" | "COMBAT" | "DIPLOMACY" | "ECONOMY" | "NARRATIVE">("ALL");
   const [showTacticalOverlay, setShowTacticalOverlay] = useState(false);
+  const [climateOverlay, setClimateOverlay] = useState<"NONE" | "TEMPERATURE" | "HUMIDITY">("NONE");
+  const boardContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Grand AI Advisor Oracle & Visual Chronicles States
-  const [sidebarTab, setSidebarTab] = useState<"chronicle" | "advisor" | "sheets">("chronicle");
+  const [sidebarTab, setSidebarTab] = useState<"chronicle" | "advisor" | "sheets" | "diplomacy">("chronicle");
   const [advisorChats, setAdvisorChats] = useState<Record<string, { sender: "user" | "advisor", text: string, timestamp: number }[]>>({});
   const [advisorInput, setAdvisorInput] = useState("");
   const [isAdvisorTyping, setIsAdvisorTyping] = useState(false);
   const [civPortraits, setCivPortraits] = useState<Record<string, string>>({});
   const [isGeneratingPortrait, setIsGeneratingPortrait] = useState(false);
   const [activePortraitModal, setActivePortraitModal] = useState<string | null>(null);
+
+  // Dynamic Climate calculations based on latitude and terrain properties
+  const getTileClimate = (x: number, y: number, terrain: TerrainType) => {
+    // Equatorial warmth is at y = 4 (center latitude)
+    const latRatio = Math.abs(y - 4.5) / 4.5; // 0 (equator) to 1 (polar ice caps)
+    
+    // Base Temperature (0 to 100)
+    let temperature = Math.round(92 - latRatio * 75);
+    
+    // Base Humidity (0 to 100)
+    let humidity = 50;
+    
+    if (terrain === "OCEAN" || terrain === "COAST" || terrain === "RIVER") {
+      humidity = 85;
+      temperature = Math.max(20, temperature - 8);
+    } else if (terrain === "DESERT") {
+      humidity = 8;
+      temperature = Math.min(100, temperature + 18);
+    } else if (terrain === "FOREST") {
+      humidity = 78;
+      temperature = Math.max(25, temperature - 4);
+    } else if (terrain === "HILL") {
+      humidity = 38;
+      temperature = Math.max(15, temperature - 10);
+    } else if (terrain === "MOUNTAIN") {
+      humidity = 25;
+      temperature = Math.max(2, temperature - 22);
+    }
+    
+    const varTemp = Math.sin(x * 1.8 + y * 2.3) * 5;
+    const varHum = Math.cos(x * 2.1 + y * 1.5) * 6;
+    
+    temperature = Math.max(0, Math.min(100, Math.round(temperature + varTemp)));
+    humidity = Math.max(0, Math.min(100, Math.round(humidity + varHum)));
+    
+    return { temperature, humidity };
+  };
+
+  const getTemperatureColor = (temp: number) => {
+    if (temp < 30) return "#2563eb"; // Arctic Blue
+    if (temp < 45) return "#38bdf8"; // Cool blue
+    if (temp < 65) return "#10b981"; // Temperate green
+    if (temp < 80) return "#f59e0b"; // Warm gold
+    return "#ef4444"; // Torrid red
+  };
+
+  const getHumidityColor = (hum: number) => {
+    if (hum < 20) return "#eab308"; // Arid desert gold
+    if (hum < 45) return "#84cc16"; // Semi-arid lime
+    if (hum < 70) return "#10b981"; // Moist green
+    return "#0284c7"; // Humid wet blue
+  };
+
+  const getCityProductionQueue = (city: any, grid: any[][], cities: any[], civs: any[]) => {
+    const owner = civs.find(c => c.id === city.ownerId);
+    const wallsBuilt = grid[city.y]?.[city.x]?.improvement === "WALLS";
+    const ownCitiesCount = cities.filter(c => c.ownerId === city.ownerId).length;
+
+    const queue: { name: string; cost: number; type: "BUILDING" | "UNIT" | "WONDER"; icon: string }[] = [];
+
+    if (city.role === "FORTRESS_BORDER") {
+      if (city.currentBuild !== "WALLS" && !wallsBuilt) {
+        queue.push({ name: "Walls", cost: 30, type: "BUILDING", icon: "🛡️" });
+      }
+      queue.push({ name: "Legion", cost: 35, type: "UNIT", icon: "⚔️" });
+      queue.push({ name: "Archer", cost: 25, type: "UNIT", icon: "🏹" });
+    } else if (city.role === "CORE_GROWTH") {
+      if (city.currentBuild !== "SETTLER" && ownCitiesCount < 3) {
+        queue.push({ name: "Settler", cost: 45, type: "UNIT", icon: "👥" });
+      }
+      queue.push({ name: "Granary", cost: 30, type: "BUILDING", icon: "🌾" });
+      queue.push({ name: "Aqueduct", cost: 40, type: "BUILDING", icon: "🚰" });
+    } else if (city.role === "INDUSTRIAL_HUB") {
+      queue.push({ name: "Forge", cost: 35, type: "BUILDING", icon: "🔥" });
+      queue.push({ name: "Barracks", cost: 30, type: "BUILDING", icon: "🏟️" });
+    } else if (city.role === "TEMPLE_SACRED") {
+      queue.push({ name: "Shrine", cost: 25, type: "BUILDING", icon: "✨" });
+      queue.push({ name: "Temple", cost: 45, type: "BUILDING", icon: "🏛️" });
+    } else if (city.role === "SCIENCE_COLLEGE") {
+      queue.push({ name: "Library", cost: 30, type: "BUILDING", icon: "📚" });
+      queue.push({ name: "Academy", cost: 50, type: "BUILDING", icon: "🧪" });
+    } else {
+      queue.push({ name: "Warrior", cost: 25, type: "UNIT", icon: "🪓" });
+      queue.push({ name: "Archer", cost: 25, type: "UNIT", icon: "🏹" });
+    }
+
+    return queue.slice(0, 2);
+  };
+
+  const getGeopoliticalStatus = (civ: any, state: any) => {
+    if (civ.isDead) return { label: "Defeated", bg: "bg-zinc-800/80 text-zinc-500 border-zinc-900", icon: "💀" };
+
+    const isAtWar = Object.keys(civ.warPlans || {}).some(
+      otherId => civ.warPlans[otherId] && civ.warPlans[otherId] !== "NONE"
+    ) || state.civs.some((other: any) => 
+      other.id !== civ.id && other.warPlans && other.warPlans[civ.id] && other.warPlans[civ.id] !== "NONE"
+    );
+
+    if (isAtWar) {
+      return { label: "At War", bg: "bg-red-500/10 text-red-400 border-red-500/30 animate-pulse", icon: "⚔️" };
+    }
+
+    const isAllied = Object.values(civ.diplomaticPostures || {}).some(p => p === "ALLY");
+    if (isAllied) {
+      return { label: "Ally", bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", icon: "🤝" };
+    }
+
+    const isFriendly = Object.values(civ.diplomaticPostures || {}).some(p => p === "FRIENDLY");
+    if (isFriendly) {
+      return { label: "Friendly", bg: "bg-blue-500/10 text-blue-400 border-blue-500/30", icon: "😊" };
+    }
+
+    return { label: "Neutral", bg: "bg-zinc-800/80 text-zinc-400 border-zinc-700", icon: "🕊️" };
+  };
+
+  const jumpToCoordinate = (x: number, y: number) => {
+    const center = getHexCenter(x, y);
+    if (boardContainerRef.current) {
+      const container = boardContainerRef.current;
+      const clientWidth = container.clientWidth;
+      const clientHeight = container.clientHeight;
+
+      const wrapperWidth = 1150;
+      const wrapperHeight = 860;
+      const svgWidth = 1050;
+      const svgHeight = 780;
+
+      const offsetX = (wrapperWidth - svgWidth) / 2;
+      const offsetY = (wrapperHeight - svgHeight) / 2;
+
+      const pixelX = offsetX + (center.x / 850) * svgWidth;
+      const pixelY = offsetY + (center.y / 640) * svgHeight;
+
+      const targetScrollX = pixelX - clientWidth / 2;
+      const targetScrollY = pixelY - clientHeight / 2;
+
+      container.scrollTo({
+        left: Math.max(0, targetScrollX),
+        top: Math.max(0, targetScrollY),
+        behavior: "smooth"
+      });
+
+      setSelectedHex({ x, y });
+    }
+  };
 
   // Sports Commentator Voice & Google Sheets Integration States
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
@@ -352,6 +554,24 @@ export default function App() {
   const [activeSpreadsheet, setActiveSpreadsheet] = useState<{ id: string, url: string } | null>(null);
   const [autoSyncSheets, setAutoSyncSheets] = useState(true);
   const [sheetsLogs, setSheetsLogs] = useState<string[]>([]);
+
+  // Timewave Zero State Variables
+  const [anomalies, setAnomalies] = useState<{ id: string; x: number; y: number; type: "RIFT" | "SHARD" }[]>([]);
+  const [isEschatonTriggered, setIsEschatonTriggered] = useState(false);
+  const [eschatonVictor, setEschatonVictor] = useState<string | null>(null);
+
+  // Novelty math according to McKenna's Novelty Theory curves
+  const getNoveltyValue = (t: number) => {
+    // Overlapping sine waves with prime cycles representing nested fractal chronological waves
+    const w1 = Math.sin(t / 2.8) * 22;
+    const w2 = Math.cos(t / 8.3) * 16;
+    const w3 = Math.sin(t / 19.5) * 12;
+    const w4 = Math.abs((t % 48) - 24) * 0.9; // saw-tooth harmonic element
+    const base = 52 + w1 + w2 + w3 - w4;
+    return Math.max(5, Math.min(95, Math.round(base)));
+  };
+
+  const currentNovelty = getNoveltyValue(gameState.turn);
 
   // Add Log entry to sheets console
   const addSheetsLog = (msg: string) => {
@@ -544,6 +764,171 @@ export default function App() {
     performSync();
   }, [gameState.turn]);
 
+  // Timewave Turn Ticks: Handle anomalies collision, spawning, and Eschaton Singularity
+  useEffect(() => {
+    if (gameState.turn === 1) {
+      // Seed initial starting anomalies
+      const initialAnoms = [
+        { id: "anom_1", x: 4, y: 3, type: "RIFT" as const },
+        { id: "anom_2", x: 8, y: 4, type: "SHARD" as const },
+        { id: "anom_3", x: 6, y: 6, type: "RIFT" as const },
+        { id: "anom_4", x: 9, y: 2, type: "SHARD" as const },
+      ];
+      setAnomalies(initialAnoms);
+      return;
+    }
+
+    // A. Check for Eschaton Singularity at Turn 120
+    if (gameState.turn >= 120 && !isEschatonTriggered) {
+      setIsPlaying(false);
+      // Determine victor (civ with highest score)
+      const aliveCivs = gameState.civs.filter(c => !c.isDead);
+      let victor = aliveCivs[0];
+      aliveCivs.forEach(c => {
+        if (c.score > victor.score) victor = c;
+      });
+
+      setEschatonVictor(victor ? victor.name : "All Humanity");
+      setIsEschatonTriggered(true);
+
+      // Log a cinematic event
+      const eschatonEvent: GameEvent = {
+        id: generateUniqueId("e_eschaton"),
+        turn: gameState.turn,
+        timestamp: Date.now(),
+        type: "WORLD_NARRATIVE",
+        category: "NARRATIVE",
+        severity: "CINEMATIC",
+        source: "SYSTEM",
+        icon: "crown",
+        headline: "THE ESCHATON SINGULARITY REACHED! TIME INTEGRATES!",
+        summary: `History has reached Turn 120—the terminal point of Terence McKenna's Timewave Zero curve. The boundaries of space, technology, and identity dissolve into a single point of infinite novelty. Under the guidance of ${victor ? victor.name : "humanity's integrated spirit"}, civilization transcends!`,
+        showInTicker: true,
+        showInLog: true,
+        triggerCinematic: true
+      };
+
+      setGameState(prev => ({
+        ...prev,
+        events: [...prev.events, eschatonEvent]
+      }));
+      return;
+    }
+
+    // B. Check for collision between units and anomalies
+    const hitAnoms: typeof anomalies = [];
+    gameState.units.forEach(u => {
+      const found = anomalies.find(a => a.x === u.x && a.y === u.y);
+      if (found) {
+        hitAnoms.push(found);
+      }
+    });
+
+    if (hitAnoms.length > 0) {
+      setAnomalies(prev => prev.filter(a => !hitAnoms.some(h => h.id === a.id)));
+      
+      setGameState(prev => {
+        const nextCivs = prev.civs.map(c => ({ ...c }));
+        const nextUnits = prev.units.map(u => {
+          const matchingHit = hitAnoms.find(h => h.x === u.x && h.y === u.y);
+          if (matchingHit) {
+            const owner = nextCivs.find(c => c.id === u.ownerId);
+            if (owner) {
+              if (matchingHit.type === "RIFT") {
+                // Mutate unit! Combat strength boosted!
+                const newStrength = u.combatStrength + 10;
+                
+                // Add a cool event log entry
+                prev.events.push({
+                  id: generateUniqueId(`e_rift_${u.id}`),
+                  turn: prev.turn,
+                  timestamp: Date.now(),
+                  type: "WORLD_NARRATIVE",
+                  category: "NARRATIVE",
+                  severity: "MAJOR",
+                  source: "AI",
+                  icon: "crown",
+                  headline: `TEMPORAL RIFT SYNERGY OVER ${owner.name.toUpperCase()} UNIT!`,
+                  summary: `A quantum-chronology rift merged with ${owner.name}'s unit at [${u.x}, ${u.y}]. Combat power increased to ${newStrength}!`,
+                  primaryCiv: { id: owner.id, name: owner.name, color: owner.color },
+                  locations: [{ x: u.x, y: u.y }],
+                  showInTicker: true,
+                  showInLog: true
+                });
+
+                return {
+                  ...u,
+                  combatStrength: newStrength,
+                  health: 100 // Fully heals unit!
+                };
+              } else {
+                // Shard: Give money and science
+                owner.gold += 50;
+                owner.science += 25;
+
+                prev.events.push({
+                  id: generateUniqueId(`e_shard_${u.id}`),
+                  turn: prev.turn,
+                  timestamp: Date.now(),
+                  type: "WORLD_NARRATIVE",
+                  category: "ECONOMY",
+                  severity: "MINOR",
+                  source: "SYSTEM",
+                  icon: "star",
+                  headline: `${owner.name} Secured a Chrono-Shard!`,
+                  summary: `Crystalline timelines collected at [${u.x}, ${u.y}], conferring +50 Gold and +25 Science!`,
+                  primaryCiv: { id: owner.id, name: owner.name, color: owner.color },
+                  locations: [{ x: u.x, y: u.y }],
+                  showInTicker: true,
+                  showInLog: true
+                });
+              }
+            }
+          }
+          return u;
+        });
+
+        return {
+          ...prev,
+          civs: nextCivs,
+          units: nextUnits
+        };
+      });
+    }
+
+    // C. Spawn new anomalies periodically
+    const novelty = getNoveltyValue(gameState.turn);
+    // Spawns 1 to 2 anomalies if high novelty (score < 50), or randomly
+    const spawnChance = novelty < 40 ? 0.85 : 0.40;
+    if (Math.random() < spawnChance) {
+      // Find a random unoccupied tile on the grid
+      const candidates: { x: number, y: number }[] = [];
+      for (let y = 1; y < MAP_HEIGHT - 1; y++) {
+        for (let x = 1; x < MAP_WIDTH - 1; x++) {
+          const tile = gameState.grid[y][x];
+          const hasCity = gameState.cities.some(c => c.x === x && c.y === y);
+          const hasUnit = gameState.units.some(u => u.x === x && u.y === y);
+          const hasAnom = anomalies.some(a => a.x === x && a.y === y);
+          if (tile.terrain !== "MOUNTAIN" && tile.terrain !== "OCEAN" && !hasCity && !hasUnit && !hasAnom) {
+            candidates.push({ x, y });
+          }
+        }
+      }
+
+      if (candidates.length > 0) {
+        const selected = candidates[Math.floor(Math.random() * candidates.length)];
+        const isRift = Math.random() < 0.35; // 35% chance Rift, 65% chance Shard
+        const newAnom = {
+          id: generateUniqueId("anom"),
+          x: selected.x,
+          y: selected.y,
+          type: isRift ? ("RIFT" as const) : ("SHARD" as const)
+        };
+        setAnomalies(prev => [...prev, newAnom].slice(-10)); // Maximum 10 anomalies on map
+      }
+    }
+  }, [gameState.turn]);
+
   // New simulation phase states and resource overlay particles
   const [activePhase, setActivePhase] = useState<"IDLE" | "RESEARCH" | "GROWTH" | "MOVEMENT" | "DIPLOMACY">("IDLE");
   const [resourceEffects, setResourceEffects] = useState<{ id: string; text: string; color: string; x: number; y: number; createdAt: number }[]>([]);
@@ -582,14 +967,14 @@ export default function App() {
 
   const speedDuration = useMemo(() => {
     switch (speed) {
-      case "1x": return 3000;
-      case "2x": return 1500;
-      case "4x": return 800;
-      case "8x": return 300;
+      case "1x": return 4000;
+      case "2x": return 2500;
+      case "4x": return 1500;
+      case "8x": return 800;
     }
   }, [speed]);
 
-  // Handle auto-sim loop
+  // Handle auto-sim loop (optimized, removed turn dependency)
   useEffect(() => {
     if (isPlaying) {
       const timerFn = () => {
@@ -607,7 +992,7 @@ export default function App() {
         clearInterval(simulationTimerRef.current);
       }
     };
-  }, [isPlaying, speedDuration, gameState.turn]);
+  }, [isPlaying, speedDuration]);
 
   // Onboarding sequence steps
   const ONBOARDING_STEPS = [
@@ -706,6 +1091,10 @@ export default function App() {
   // Turn Simulation Loop (Deterministic engine guided by AI/Mock labels)
   // -----------------------------------------------------------------------------
   const executeSimulationTurn = async () => {
+    if (isEschatonTriggered) {
+      setIsPlaying(false);
+      return;
+    }
     if (isExecutingTurnRef.current) return;
     isExecutingTurnRef.current = true;
 
@@ -833,9 +1222,22 @@ export default function App() {
         const owner = nextCivs.find(c => c.id === city.ownerId);
         if (!owner || owner.isDead) return;
 
-        // 1. Food and Growth
+        // 1. Food and Growth (with climate modifiers)
+        const tile = nextGrid[city.y]?.[city.x];
+        const climate = getTileClimate(city.x, city.y, tile?.terrain || "GRASS");
+        
+        let climateModifier = 1.0;
+        if (climate.temperature >= 45 && climate.temperature <= 75 && climate.humidity >= 45 && climate.humidity <= 80) {
+          climateModifier = 1.35; // Temperate Oasis bonus
+        } else if (climate.temperature > 85 || climate.temperature < 20 || climate.humidity < 15) {
+          climateModifier = 0.60; // Extreme weather penalty
+        } else if (climate.temperature < 35 || climate.humidity < 30) {
+          climateModifier = 0.85; // Minor cold/arid penalty
+        }
+
         let foodIncome = 3;
         if (city.role === "CORE_GROWTH") foodIncome += 3;
+        foodIncome = Math.round(foodIncome * climateModifier);
         city.foodProgress += foodIncome;
 
         const growthCost = city.population * 15;
@@ -946,6 +1348,30 @@ export default function App() {
         const owner = nextCivs.find(c => c.id === u.ownerId);
         if (!owner || owner.isDead) return false; // Clean up deceased factions
 
+        // Weather/Climate delay check (Extreme cold or torrid heat slows down logistics)
+        const currentTile = nextGrid[u.y]?.[u.x];
+        const climate = getTileClimate(u.x, u.y, currentTile?.terrain || "GRASS");
+        const isExtremeWeather = climate.temperature < 25 || climate.temperature > 85 || climate.humidity < 12;
+        
+        if (isExtremeWeather && Math.random() < 0.3) {
+          newEvents.push({
+            id: generateUniqueId(`e_weather_delay_${u.id}_${nextTurn}`),
+            turn: nextTurn,
+            timestamp: Date.now(),
+            type: "WORLD_NARRATIVE",
+            category: "COMBAT",
+            severity: "MINOR",
+            source: "SYSTEM",
+            icon: "scroll",
+            headline: `${owner.name.toUpperCase()} UNIT DELAYED BY WEATHER!`,
+            summary: `Severe weather elements (Temp: ${climate.temperature}°C, Hum: ${climate.humidity}%) near [${u.x}, ${u.y}] have stalled the movement of the active ${u.type}. Logistics remain frozen until regional conditions clear.`,
+            primaryCiv: { id: owner.id, name: owner.name, color: owner.color },
+            locations: [{ x: u.x, y: u.y }],
+            showInLog: true
+          });
+          return true; // Bypasses movement for this turn, keeping unit alive
+        }
+
         const oldX = u.x;
         const oldY = u.y;
 
@@ -1050,7 +1476,7 @@ export default function App() {
 
             if (enemyUnit) {
               // Attack!
-              resolveCombat(u, enemyUnit, nextTurn, newEvents);
+              resolveCombat(u, enemyUnit, nextTurn, newEvents, nextCivs);
               hasAttacked = true;
               break;
             }
@@ -1204,7 +1630,7 @@ export default function App() {
   // -----------------------------------------------------------------------------
   // Combat Mechanics & Resolution Heuristics
   // -----------------------------------------------------------------------------
-  function resolveCombat(attacker: Unit, defender: Unit, turn: number, events: GameEvent[]) {
+  function resolveCombat(attacker: Unit, defender: Unit, turn: number, events: GameEvent[], civs: Civilization[]) {
     const diceRoll = Math.floor(Math.random() * 6) + 1;
     const baseDamage = 25 + diceRoll * 5;
     
@@ -1231,7 +1657,58 @@ export default function App() {
       showInLog: true
     });
 
-    if (defender.health <= 0) {
+    const getXpThreshold = (lvl: number) => {
+      if (lvl === 1) return 50;
+      if (lvl === 2) return 120;
+      if (lvl === 3) return 200;
+      return lvl * 100;
+    };
+
+    const awardXpAndCheckLevelUp = (unit: Unit, xpGained: number) => {
+      const currentLevel = unit.level || 1;
+      const currentXp = unit.xp || 0;
+      const newXp = currentXp + xpGained;
+      unit.xp = newXp;
+      unit.level = currentLevel;
+
+      const threshold = getXpThreshold(currentLevel);
+      if (newXp >= threshold) {
+        const nextLevel = currentLevel + 1;
+        unit.level = nextLevel;
+        unit.xp = newXp - threshold;
+
+        // Increase combat strength by +3 and fully heal
+        unit.combatStrength = (unit.combatStrength || 12) + 3;
+        unit.health = 100;
+
+        const owner = civs.find(c => c.id === unit.ownerId);
+        const ownerName = owner ? owner.name : "Unknown";
+
+        events.push({
+          id: generateUniqueId(`e_promote_${unit.id}_${nextLevel}`),
+          turn,
+          timestamp: Date.now(),
+          type: "WORLD_NARRATIVE",
+          category: "COMBAT",
+          severity: "MAJOR",
+          source: "SYSTEM",
+          icon: "star",
+          headline: `VETERAN PROMOTION: ${ownerName.toUpperCase()} ${unit.type}!`,
+          summary: `The battalion reached Level ${nextLevel} (${
+            nextLevel === 2 ? "Veteran" : nextLevel === 3 ? "Elite" : "Heroic Sovereign"
+          }). Base combat strength raised by +3 (total ${unit.combatStrength}) with a full restoration of health.`,
+          locations: [{ x: unit.x, y: unit.y }],
+          showInTicker: true,
+          showInLog: true
+        });
+      }
+    };
+
+    // XP Distribution logic based on combat outcome
+    if (defender.health <= 0 && attacker.health > 0) {
+      // Attacker obliterated defender
+      awardXpAndCheckLevelUp(attacker, 45); // Heavy victor bonus
+      
       events.push({
         id: generateUniqueId(`e_kill_${defender.id}`),
         turn,
@@ -1246,6 +1723,13 @@ export default function App() {
         locations: [{ x: defender.x, y: defender.y }],
         showInLog: true
       });
+    } else if (attacker.health <= 0 && defender.health > 0) {
+      // Defender killed attacker on counter
+      awardXpAndCheckLevelUp(defender, 45); // Heavy defender victor bonus
+    } else if (attacker.health > 0 && defender.health > 0) {
+      // Both survived: Skirmish skirmishers
+      awardXpAndCheckLevelUp(attacker, 20);
+      awardXpAndCheckLevelUp(defender, 20);
     }
   }
 
@@ -1545,7 +2029,106 @@ export default function App() {
   };
 
   const resetSimulation = () => {
-    window.location.reload();
+    const startPositions = getDynamicStartingPositions();
+    const grid = generateInitialGrid(startPositions);
+    
+    // Starting units
+    const initialUnits: Unit[] = [
+      // Rome
+      { id: "u_rome_s", uniqueId: "unit_u_rome_s", type: "SETTLER", ownerId: "rome", x: startPositions.rome.x, y: startPositions.rome.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_rome_w", uniqueId: "unit_u_rome_w", type: "WARRIOR", ownerId: "rome", x: startPositions.rome.x + 1, y: startPositions.rome.y, health: 100, hasMoved: false, combatStrength: 12 },
+      // Han
+      { id: "u_han_s", uniqueId: "unit_u_han_s", type: "SETTLER", ownerId: "han", x: startPositions.han.x, y: startPositions.han.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_han_w", uniqueId: "unit_u_han_w", type: "WARRIOR", ownerId: "han", x: startPositions.han.x - 1, y: startPositions.han.y, health: 100, hasMoved: false, combatStrength: 12 },
+      // Maya
+      { id: "u_maya_s", uniqueId: "unit_u_maya_s", type: "SETTLER", ownerId: "maya", x: startPositions.maya.x, y: startPositions.maya.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_maya_w", uniqueId: "unit_u_maya_w", type: "WARRIOR", ownerId: "maya", x: startPositions.maya.x + 1, y: startPositions.maya.y, health: 100, hasMoved: false, combatStrength: 12 },
+      // Viking
+      { id: "u_viking_s", uniqueId: "unit_u_viking_s", type: "SETTLER", ownerId: "viking", x: startPositions.viking.x, y: startPositions.viking.y, health: 100, hasMoved: false, combatStrength: 0 },
+      { id: "u_viking_w", uniqueId: "unit_u_viking_w", type: "WARRIOR", ownerId: "viking", x: startPositions.viking.x - 1, y: startPositions.viking.y, health: 100, hasMoved: false, combatStrength: 12 }
+    ];
+
+    // Force warrior positions to be valid neighbors
+    const warriorSetups = [
+      { id: "u_rome_w", x: startPositions.rome.x, y: startPositions.rome.y },
+      { id: "u_han_w", x: startPositions.han.x, y: startPositions.han.y },
+      { id: "u_maya_w", x: startPositions.maya.x, y: startPositions.maya.y },
+      { id: "u_viking_w", x: startPositions.viking.x, y: startPositions.viking.y }
+    ];
+
+    warriorSetups.forEach(w => {
+      const neighbors = getNeighbors(w.x, w.y);
+      const suitable = neighbors.find(n => grid[n.y]?.[n.x]?.terrain !== "MOUNTAIN" && grid[n.y]?.[n.x]?.terrain !== "OCEAN");
+      const unit = initialUnits.find(u => u.id === w.id);
+      if (unit && suitable) {
+        unit.x = suitable.x;
+        unit.y = suitable.y;
+      }
+    });
+
+    const initialEvent: GameEvent = {
+      id: "e_init",
+      uniqueId: "ue_e_init",
+      turn: 1,
+      timestamp: Date.now(),
+      type: "WORLD_NARRATIVE",
+      category: "NARRATIVE",
+      severity: "MAJOR",
+      source: "SYSTEM",
+      icon: "scroll",
+      headline: "The Dawn of History",
+      summary: "Four great civilizations emerge from the shadows of history. The battle for territory, science, and glory has begun!",
+      showInTicker: true,
+      showInLog: true
+    };
+
+    setGameState({
+      turn: 1,
+      width: MAP_WIDTH,
+      height: MAP_HEIGHT,
+      grid,
+      civs: INITIAL_CIVS.map(c => ({
+        ...c,
+        gold: 20,
+        science: 0,
+        score: 11,
+        isDead: false,
+        grandStrategy: c.id === "rome" || c.id === "maya" ? "EXPAND" : (c.id === "han" ? "TALL_TECH" : "MILITARY_RUSH"),
+        researchTheme: c.id === "rome" || c.id === "maya" ? "SCIENCE" : (c.id === "han" ? "ECONOMY" : "MILITARY_LAND"),
+        researchedTechs: [],
+        currentTech: c.id === "rome" || c.id === "maya" ? "Irrigation" : (c.id === "han" ? "Writing" : "Bronze Working"),
+        diplomaticPostures: { ...c.diplomaticPostures },
+        warPlans: { ...c.warPlans }
+      })),
+      cities: [],
+      units: initialUnits,
+      events: [initialEvent],
+      turnSummaries: [],
+      isAiDeciding: false
+    });
+
+    setSelectedCivId(null);
+    setSelectedHex(null);
+    setActiveCinematic(null);
+    setCameraFocus(null);
+    setIsPlaying(false);
+    setAdvisorChats({});
+    setEschatonVictor(null);
+    setIsEschatonTriggered(false);
+    setActivePhase("IDLE");
+    setResourceEffects([]);
+    setHexPulses([]);
+    setBorderGlows([]);
+    setCombatArcs([]);
+    
+    // Seed initial anomalies
+    const initialAnoms = [
+      { id: "anom_1", x: 4, y: 3, type: "RIFT" as const },
+      { id: "anom_2", x: 8, y: 4, type: "SHARD" as const },
+      { id: "anom_3", x: 6, y: 6, type: "RIFT" as const },
+      { id: "anom_4", x: 9, y: 2, type: "SHARD" as const },
+    ];
+    setAnomalies(initialAnoms);
   };
 
   // -----------------------------------------------------------------------------
@@ -1604,6 +2187,58 @@ export default function App() {
     return [...gameState.civs].sort((a, b) => b.score - a.score);
   }, [gameState.civs]);
 
+  const tradeRoutes = useMemo(() => {
+    const routes: { id: string; from: { x: number; y: number }; to: { x: number; y: number } }[] = [];
+    const processedPairs = new Set<string>();
+
+    const activeCivs = gameState.civs.filter(c => !c.isDead);
+    for (let i = 0; i < activeCivs.length; i++) {
+      const civA = activeCivs[i];
+      for (let j = i + 1; j < activeCivs.length; j++) {
+        const civB = activeCivs[j];
+
+        // Check if friendly or allied
+        const postureA = civA.diplomaticPostures[civB.id];
+        const postureB = civB.diplomaticPostures[civA.id];
+        const isFriendlyOrAlly = 
+          postureA === "FRIENDLY" || postureA === "ALLY" ||
+          postureB === "FRIENDLY" || postureB === "ALLY";
+
+        if (isFriendlyOrAlly) {
+          const citiesA = gameState.cities.filter(c => c.ownerId === civA.id);
+          const citiesB = gameState.cities.filter(c => c.ownerId === civB.id);
+
+          // For each city in A, find the closest city in B and establish a route
+          citiesA.forEach(cityA => {
+            let closestCity: any = null;
+            let minDist = Infinity;
+
+            citiesB.forEach(cityB => {
+              const dist = Math.abs(cityA.x - cityB.x) + Math.abs(cityA.y - cityB.y);
+              if (dist < minDist) {
+                minDist = dist;
+                closestCity = cityB;
+              }
+            });
+
+            if (closestCity) {
+              const routeKey = [cityA.id, closestCity.id].sort().join("-");
+              if (!processedPairs.has(routeKey)) {
+                processedPairs.add(routeKey);
+                routes.push({
+                  id: `trade-${cityA.id}-${closestCity.id}`,
+                  from: { x: cityA.x, y: cityA.y },
+                  to: { x: closestCity.x, y: closestCity.y }
+                });
+              }
+            }
+          });
+        }
+      }
+    }
+    return routes;
+  }, [gameState.civs, gameState.cities]);
+
   const activeWarsSummary = useMemo(() => {
     const summary: {
       uniqueId: string;
@@ -1660,6 +2295,31 @@ export default function App() {
     return summary;
   }, [gameState]);
 
+  // Timewave Waveform Calculation
+  const wavePoints = useMemo(() => {
+    const points: { turn: number, value: number, x: number, y: number }[] = [];
+    const startTurn = Math.max(1, gameState.turn - 20);
+    const endTurn = Math.min(120, gameState.turn + 20);
+    
+    const width = 450;
+    const height = 40;
+    const count = endTurn - startTurn;
+    
+    for (let t = startTurn; t <= endTurn; t++) {
+      const val = getNoveltyValue(t); // 0 to 100
+      const x = ((t - startTurn) / (count || 1)) * width;
+      // Lower N(t) is HIGHER novelty. Invert y axis so peaks go upward!
+      const y = ((100 - val) / 100) * height + 5; // offset slightly from top
+      points.push({ turn: t, value: val, x, y });
+    }
+    return { points, startTurn, endTurn };
+  }, [gameState.turn]);
+
+  const lineD = wavePoints.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaD = wavePoints.points.length > 0 
+    ? `${lineD} L ${wavePoints.points[wavePoints.points.length - 1].x} 55 L ${wavePoints.points[0].x} 55 Z`
+    : '';
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0f] text-zinc-300 font-sans select-none">
       
@@ -1672,6 +2332,78 @@ export default function App() {
       )}
       {activeCinematic?.type === "TECH_RESEARCHED" && (
         <TechResearchedCinematic event={activeCinematic} onFinished={() => setActiveCinematic(null)} />
+      )}
+
+      {/* ESCHATON TRANSCENDENCE SINGULARITY ENDING MODAL */}
+      {isEschatonTriggered && (
+        <div className="absolute inset-0 z-50 bg-[#020205]/98 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center overflow-hidden select-none font-sans">
+          {/* Glowing animated background portal effect */}
+          <div className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-r from-purple-600/10 via-cyan-500/10 to-red-500/10 blur-[120px] animate-pulse pointer-events-none" />
+          
+          <div className="max-w-2xl w-full bg-black/40 border border-zinc-800/80 rounded-2xl p-8 backdrop-blur-md relative z-10 flex flex-col items-center shadow-2xl">
+            {/* Spinning Golden Hourglass / Singularity crown */}
+            <div className="w-20 h-20 rounded-full border-2 border-dashed border-cyan-400 flex items-center justify-center animate-spin" style={{ animationDuration: "12s" }}>
+              <Sparkles className="w-10 h-10 text-amber-400 animate-pulse" />
+            </div>
+
+            <h1 className="text-3xl font-black tracking-widest text-white mt-6 font-display uppercase">
+              THE ESCHATON SINGULARITY
+            </h1>
+            <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest mt-1">
+              Terminal Node Calibrated ─ Chronology Reintegrated
+            </p>
+
+            <div className="mt-6 text-sm text-zinc-400 leading-relaxed font-sans max-w-lg">
+              "At Turn 120, the cosmic and technological complexity of the simulation converges into a point of infinite potential. Terence McKenna's curves achieve complete integration—all structural boundaries, scientific pursuits, and national borders collapse into a single sovereign timeline."
+            </div>
+
+            {/* Victor proclamation */}
+            <div className="mt-8 px-6 py-4 bg-amber-500/10 border border-amber-500/30 rounded-xl max-w-md w-full">
+              <div className="text-[10px] font-mono text-amber-500 uppercase tracking-widest font-black">
+                Sovereign Transcendence Victor
+              </div>
+              <div className="text-2xl font-black text-white uppercase mt-1 font-display">
+                {eschatonVictor || "All Humanity"}
+              </div>
+              <div className="text-xs text-zinc-400 mt-1">
+                Ascends as the prime administrator of the post-historical dimension.
+              </div>
+            </div>
+
+            {/* Final score scoreboard */}
+            <div className="mt-6 w-full max-w-md border border-zinc-900 bg-zinc-950/60 rounded-xl p-4">
+              <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-3">
+                Final Chronological Score Report
+              </h3>
+              <div className="space-y-2">
+                {gameState.civs
+                  .sort((a, b) => b.score - a.score)
+                  .map((civ) => (
+                    <div key={civ.id} className="flex justify-between items-center text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: civ.color }} />
+                        <span className={`${civ.isDead ? 'line-through text-zinc-600' : 'text-white font-semibold'}`}>
+                          {civ.name}
+                        </span>
+                      </span>
+                      <span className="font-mono text-zinc-400 font-bold">{civ.score} pts</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <button
+              onClick={() => {
+                // Completely reset the simulation to initial state programmatically
+                resetSimulation();
+              }}
+              className="mt-8 px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-bold text-sm tracking-wider uppercase rounded-lg transition-all shadow-lg hover:shadow-cyan-500/20 active:scale-95"
+            >
+              Reboot Simulation Matrix
+            </button>
+          </div>
+        </div>
       )}
 
       {/* B. ONBOARDING MODAL */}
@@ -1829,15 +2561,16 @@ export default function App() {
         </header>
 
         {/* HEX BOARD CONTAINER */}
-        <div className="flex-1 relative overflow-auto bg-[#0d0f19] flex items-center justify-center p-4">
+        <div ref={boardContainerRef} className={`flex-1 relative overflow-auto bg-[#0d0f19] scrollbar-thin flex ${activeCinematic?.type === "WAR_DECLARED" ? "animate-shake" : ""}`}>
           
           {/* Subtle global vignette overlay centered on the map area */}
           <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_30%,#03050a_95%)] opacity-85 z-10" />
 
-          <svg
-            className="w-full h-full min-w-[900px] min-h-[600px] select-none"
-            viewBox="0 0 850 640"
-          >
+          <div className="w-[1150px] h-[860px] relative flex items-center justify-center m-auto shrink-0">
+            <svg
+              className="w-[1050px] h-[780px] select-none"
+              viewBox="0 0 850 640"
+            >
             <defs>
               <filter id="city-shadow" x="-30%" y="-30%" width="160%" height="160%">
                 <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.8" />
@@ -1898,6 +2631,18 @@ export default function App() {
                 <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.35" />
                 <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
               </radialGradient>
+
+              {/* Timewave Zero Anomalies Gradients */}
+              <radialGradient id="rift-glow-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#c084fc" stopOpacity="0.9" />
+                <stop offset="70%" stopColor="#3b82f6" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id="shard-crystal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#e0f2fe" />
+                <stop offset="50%" stopColor="#38bdf8" />
+                <stop offset="100%" stopColor="#0369a1" />
+              </linearGradient>
             </defs>
 
             {/* Background grids / shadows */}
@@ -1983,6 +2728,11 @@ export default function App() {
                   // Border colors and territory glow overlays according to civilization control
                   let borderOverlay = null;
                   if (owner) {
+                    const isWarringFaction = activeCinematic?.type === "WAR_DECLARED" && (
+                      owner.id === activeCinematic.primaryCiv?.id ||
+                      owner.id === activeCinematic.secondaryCiv?.id
+                    );
+
                     borderOverlay = (
                       <g className="transition-all duration-300 pointer-events-none">
                         {/* Soft Outer Glow for Territory */}
@@ -2004,6 +2754,18 @@ export default function App() {
                           strokeOpacity="0.75"
                           strokeDasharray="4,2.5"
                         />
+                        {/* Dynamic Pulsing War Border Glow Overlay */}
+                        {isWarringFaction && (
+                          <polygon
+                            points={getHexPoints(center.x, center.y, HEX_SIZE - 1.5)}
+                            fill="none"
+                            stroke="#ef4444"
+                            strokeWidth="4.5"
+                            strokeOpacity="0.95"
+                            className="animate-pulse"
+                            filter="url(#glow)"
+                          />
+                        )}
                       </g>
                     );
                   }
@@ -2019,6 +2781,14 @@ export default function App() {
                         points={getHexPoints(center.x, center.y, HEX_SIZE - 0.5)}
                         stroke={isTileSelected ? "#f59e0b" : strokeColor}
                         strokeWidth={isTileSelected ? "3.2" : "0.8"}
+                        fill={
+                          climateOverlay === "TEMPERATURE"
+                            ? getTemperatureColor(getTileClimate(x, y, tile.terrain).temperature)
+                            : climateOverlay === "HUMIDITY"
+                            ? getHumidityColor(getTileClimate(x, y, tile.terrain).humidity)
+                            : undefined
+                        }
+                        fillOpacity={climateOverlay !== "NONE" ? "0.7" : undefined}
                         className={`hex-tile ${terrainClass} transition-all duration-300 hover:brightness-110`}
                       />
 
@@ -2151,6 +2921,88 @@ export default function App() {
                   );
                 })
               )}
+            </g>
+
+            {/* RENDER TIMEWAVE ZERO ANOMALIES */}
+            <g id="anomalies-layer">
+              {anomalies.map(anom => {
+                const center = getHexCenter(anom.x, anom.y);
+                if (anom.type === "RIFT") {
+                  return (
+                    <g key={anom.id} className="pointer-events-none select-none">
+                      {/* Pulsing temporal portal glow */}
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r="14"
+                        fill="url(#rift-glow-grad)"
+                        opacity="0.6"
+                        className="animate-pulse"
+                      />
+                      {/* Swirling spatial distortion ring */}
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r="10"
+                        fill="none"
+                        stroke="#c084fc"
+                        strokeWidth="1.5"
+                        strokeDasharray="6,4"
+                        className="animate-spin"
+                        style={{ transformOrigin: `${center.x}px ${center.y}px`, animationDuration: "8s" }}
+                      />
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r="6"
+                        fill="none"
+                        stroke="#22d3ee"
+                        strokeWidth="1"
+                        strokeDasharray="2,3"
+                        className="animate-spin"
+                        style={{ transformOrigin: `${center.x}px ${center.y}px`, animationDuration: "4s" }}
+                      />
+                      {/* Swirling core */}
+                      <path
+                        d={`M ${center.x - 4} ${center.y - 4} Q ${center.x} ${center.y} ${center.x + 4} ${center.y + 4} M ${center.x + 4} ${center.y - 4} Q ${center.x} ${center.y} ${center.x - 4} ${center.y + 4}`}
+                        fill="none"
+                        stroke="#a855f7"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      />
+                      {/* Center distortion dot */}
+                      <circle cx={center.x} cy={center.y} r="2.5" fill="#f43f5e" />
+                    </g>
+                  );
+                } else {
+                  return (
+                    <g key={anom.id} className="pointer-events-none select-none">
+                      {/* Glowing Chrono-Shard Crystal */}
+                      <polygon
+                        points={`${center.x},${center.y - 12} ${center.x + 6},${center.y - 2} ${center.x + 8},${center.y + 4} ${center.x},${center.y + 11} ${center.x - 8},${center.y + 4} ${center.x - 6},${center.y - 2}`}
+                        fill="url(#shard-crystal-grad)"
+                        stroke="#22d3ee"
+                        strokeWidth="1.5"
+                        filter="url(#glow)"
+                        className="animate-pulse"
+                      />
+                      {/* Inner crystal facet lines */}
+                      <line x1={center.x} y1={center.y - 12} x2={center.x} y2={center.y + 11} stroke="#ffffff" strokeWidth="0.8" opacity="0.7" />
+                      <line x1={center.x - 8} y1={center.y + 4} x2={center.x + 8} y2={center.y + 4} stroke="#22d3ee" strokeWidth="0.5" opacity="0.6" />
+                      {/* Sparkle star halo */}
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r="4"
+                        fill="#38bdf8"
+                        opacity="0.3"
+                        className="animate-ping"
+                        style={{ animationDuration: "1.8s" }}
+                      />
+                    </g>
+                  );
+                }
+              })}
             </g>
 
             {/* RENDER CITIES */}
@@ -2446,7 +3298,74 @@ export default function App() {
                         />
                       </g>
                     )}
+
+                    {/* Unit Level Rank Badge */}
+                    {unit.level && unit.level > 1 && (
+                      <g className="pointer-events-none">
+                        <circle
+                          cx={center.x + 13}
+                          cy={center.y - 13}
+                          r="6.2"
+                          fill="#0f172a"
+                          stroke="#fbbf24"
+                          strokeWidth="1.2"
+                        />
+                        <text
+                          x={center.x + 13}
+                          y={center.y - 10.5}
+                          textAnchor="middle"
+                          fontSize="7.5"
+                          fontWeight="black"
+                          fill="#fbbf24"
+                          className="select-none"
+                        >
+                          ★
+                        </text>
+                      </g>
+                    )}
                     </g>
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* AMBIENT TRADE ROUTES BETWEEN FRIENDLY/ALLIED CITIES */}
+            <g id="trade-routes-layer" strokeOpacity="0.75" fill="none">
+              {tradeRoutes.map(route => {
+                const start = getHexCenter(route.from.x, route.from.y);
+                const end = getHexCenter(route.to.x, route.to.y);
+                
+                const dx = end.x - start.x;
+                const dy = end.y - start.y;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const nx = -dy / len;
+                const ny = dx / len;
+
+                // Shift gold line slightly to one side
+                const goldStart = { x: start.x + nx * 2.2, y: start.y + ny * 2.2 };
+                const goldEnd = { x: end.x + nx * 2.2, y: end.y + ny * 2.2 };
+                const midX = (goldStart.x + goldEnd.x) / 2;
+                const midY = (goldStart.y + goldEnd.y) / 2 - 10;
+
+                // Shift science line slightly to the other side
+                const sciStart = { x: start.x - nx * 2.2, y: start.y - ny * 2.2 };
+                const sciEnd = { x: end.x - nx * 2.2, y: end.y - ny * 2.2 };
+                const sciMidX = (sciStart.x + sciEnd.x) / 2;
+                const sciMidY = (sciStart.y + sciEnd.y) / 2 - 10;
+
+                return (
+                  <g key={route.id} opacity="0.65" className="transition-all duration-500">
+                    {/* Gold Trade Path (Wealth flow) */}
+                    <path
+                      d={`M ${goldStart.x} ${goldStart.y} Q ${midX} ${midY} ${goldEnd.x} ${goldEnd.y}`}
+                      className="trade-route-gold"
+                    />
+                    
+                    {/* Science Trade Path (Knowledge flow) */}
+                    <path
+                      d={`M ${sciStart.x} ${sciStart.y} Q ${sciMidX} ${sciMidY} ${sciEnd.x} ${sciEnd.y}`}
+                      className="trade-route-science"
+                    />
                   </g>
                 );
               })}
@@ -2523,6 +3442,7 @@ export default function App() {
               })}
             </g>
           </svg>
+        </div>
 
           {/* HEX FLOATING HOVER CARD / SELECTION SUMMARY */}
           {selectedHex && (
@@ -2569,11 +3489,41 @@ export default function App() {
                     </div>
 
                     {cityOnTile && (
-                      <div className="bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
-                        <div className="text-[9px] text-zinc-500 uppercase font-bold mb-1">🏢 Regional City</div>
-                        <div className="text-white font-bold">{cityOnTile.name} (Pop {cityOnTile.population})</div>
-                        <div className="text-zinc-400 text-[10px] mt-0.5">Role: {cityOnTile.role}</div>
-                        <div className="text-zinc-400 text-[10px]">Build: {cityOnTile.currentBuild || "Idle"}</div>
+                      <div className="bg-zinc-900/60 p-2 rounded-lg border border-zinc-800 space-y-2">
+                        <div className="flex justify-between items-center border-b border-zinc-800 pb-1">
+                          <span className="text-[9px] text-zinc-500 uppercase font-bold">🏢 Regional City</span>
+                          <span className="text-[9px] text-zinc-400 font-mono">Pop {cityOnTile.population}</span>
+                        </div>
+                        <div className="text-white font-black">{cityOnTile.name}</div>
+                        <div className="text-zinc-400 text-[10px]">Role: <span className="font-mono text-zinc-300 font-semibold">{cityOnTile.role.replace(/_/g, " ")}</span></div>
+                        
+                        {/* Current Production */}
+                        <div className="mt-1 bg-zinc-950/40 p-1.5 rounded border border-zinc-800/50">
+                          <div className="flex justify-between text-[9px] text-zinc-500 mb-0.5">
+                            <span>CURRENT PROJECT</span>
+                            <span className="text-amber-500 font-bold">🛠️ {Math.min(100, Math.floor((cityOnTile.productionProgress || 0) * 10))}%</span>
+                          </div>
+                          <div className="text-white font-bold text-[10px] flex justify-between items-center">
+                            <span>{cityOnTile.currentBuild || "Idle"}</span>
+                          </div>
+                          <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden mt-1">
+                            <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${Math.min(100, (cityOnTile.productionProgress || 0) * 10)}%` }} />
+                          </div>
+                        </div>
+
+                        {/* Production Queue */}
+                        <div className="space-y-1">
+                          <div className="text-[8px] text-zinc-500 uppercase tracking-wider font-bold">Upcoming Projects</div>
+                          {getCityProductionQueue(cityOnTile, gameState.grid, gameState.cities, gameState.civs).map((item, idx) => (
+                            <div key={item.name} className="flex justify-between items-center bg-zinc-950/20 p-1 rounded border border-zinc-900/40 text-[9px]">
+                              <span className="text-zinc-400 flex items-center gap-1 font-medium">
+                                <span className="text-[8px] text-zinc-500 font-mono font-bold">#{idx + 1}</span>
+                                {item.icon} {item.name}
+                              </span>
+                              <span className="text-[8px] text-zinc-500 font-mono">{item.cost} hammer</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
@@ -2613,7 +3563,7 @@ export default function App() {
               <span className="w-4 h-0.5 border-t border-dashed border-zinc-500 block"></span>
               <span>Standard Neutral / Peace</span>
             </div>
-            <div className="border-t border-zinc-900 pt-2.5 mt-1.5">
+            <div className="border-t border-zinc-900 pt-2 mt-1.5 space-y-1.5">
               <button
                 onClick={() => setShowTacticalOverlay(!showTacticalOverlay)}
                 className={`w-full py-1.5 rounded text-[8px] font-bold uppercase tracking-wider transition-all border flex items-center justify-center gap-1 cursor-pointer ${
@@ -2624,6 +3574,94 @@ export default function App() {
               >
                 📊 {showTacticalOverlay ? "Hide Tactical Grid" : "Show Tactical Grid"}
               </button>
+
+              <div className="flex flex-col gap-1 border-t border-zinc-900 pt-1.5">
+                <span className="text-[7.5px] font-bold uppercase text-zinc-500 tracking-wider">Climate Overlay</span>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    onClick={() => setClimateOverlay("NONE")}
+                    className={`py-1 rounded text-[7.5px] font-bold transition-all border cursor-pointer ${
+                      climateOverlay === "NONE"
+                        ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                        : "bg-zinc-900/60 text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                    }`}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    onClick={() => setClimateOverlay("TEMPERATURE")}
+                    className={`py-1 rounded text-[7.5px] font-bold transition-all border cursor-pointer ${
+                      climateOverlay === "TEMPERATURE"
+                        ? "bg-orange-500/20 text-orange-400 border-orange-500/40"
+                        : "bg-zinc-900/60 text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                    }`}
+                  >
+                    Thermal
+                  </button>
+                  <button
+                    onClick={() => setClimateOverlay("HUMIDITY")}
+                    className={`py-1 rounded text-[7.5px] font-bold transition-all border cursor-pointer ${
+                      climateOverlay === "HUMIDITY"
+                        ? "bg-sky-500/20 text-sky-400 border-sky-500/40"
+                        : "bg-zinc-900/60 text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                    }`}
+                  >
+                    Humidity
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* TERRAIN/CIVILIZATION MINIMAP OVERLAY */}
+          <div className="absolute bottom-4 right-4 bg-zinc-950/90 p-2.5 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1.5 z-10 backdrop-blur shadow-2xl max-w-[210px]">
+            <h5 className="font-bold text-white text-[9px] uppercase tracking-wider mb-1 flex items-center justify-between">
+              <span>🗺️ Strategic Minimap</span>
+              <span className="text-[7px] text-amber-500 font-mono">{MAP_WIDTH} x {MAP_HEIGHT} Grid</span>
+            </h5>
+            
+            <div 
+              className="grid gap-[2.5px] bg-zinc-900 p-1.5 rounded-lg border border-zinc-800/60 overflow-hidden"
+              style={{ gridTemplateColumns: `repeat(${MAP_WIDTH}, minmax(0, 1fr))` }}
+            >
+              {Array.from({ length: MAP_HEIGHT }).map((_, y) => (
+                <React.Fragment key={y}>
+                  {Array.from({ length: MAP_WIDTH }).map((_, x) => {
+                    const tile = gameState.grid[y]?.[x];
+                    const owner = tile && tile.ownerCivId ? gameState.civs.find(c => c.id === tile.ownerCivId) : null;
+                    const isSelected = selectedHex && selectedHex.x === x && selectedHex.y === y;
+                    
+                    let baseColor = "#1e293b"; // Default grey / plains
+                    if (owner) {
+                      baseColor = owner.color;
+                    } else if (tile) {
+                      if (tile.terrain === "OCEAN" || tile.terrain === "COAST") baseColor = "#1d4ed8";
+                      else if (tile.terrain === "FOREST") baseColor = "#065f46";
+                      else if (tile.terrain === "HILL") baseColor = "#4b5563";
+                      else if (tile.terrain === "MOUNTAIN") baseColor = "#374151";
+                      else if (tile.terrain === "DESERT") baseColor = "#d97706";
+                      else if (tile.terrain === "RIVER") baseColor = "#0284c7";
+                    }
+                    
+                    return (
+                      <button
+                        key={`${x}-${y}`}
+                        onClick={() => jumpToCoordinate(x, y)}
+                        title={`Focus coordinates [${x}, ${y}]`}
+                        className={`aspect-square w-full rounded-[1px] transition-all hover:scale-125 hover:brightness-125 cursor-pointer ${
+                          isSelected ? "ring-[1.5px] ring-amber-400 scale-110 z-20" : "opacity-85"
+                        }`}
+                        style={{ backgroundColor: baseColor }}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+            
+            <div className="text-[7px] text-zinc-500 font-mono flex justify-between pt-0.5">
+              <span>Click a tile to jump camera</span>
+              <span className="text-zinc-400">{selectedHex ? `[${selectedHex.x}, ${selectedHex.y}]` : "No Focus"}</span>
             </div>
           </div>
         </div>
@@ -2693,34 +3731,132 @@ export default function App() {
           </div>
         </section>
 
-        {/* BOTTOM TURN HISTORIC TIMELINE */}
-        <section className="h-16 w-full max-w-full bg-[#010205] border-t border-zinc-900 flex items-center px-4 overflow-x-auto gap-2">
-          <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest shrink-0 border-r border-zinc-800 pr-4 mr-2">
-            History<br/>Timeline
+        {/* TIMEWAVE ZERO INTERACTIVE MONITOR PANEL */}
+        <section className="h-32 w-full max-w-full bg-[#020204]/95 border-t border-zinc-900 flex items-center px-4 gap-6 shrink-0 relative overflow-hidden select-none font-sans">
+          {/* Left Panel: Stats & Calibration */}
+          <div className="w-48 shrink-0 flex flex-col justify-center border-r border-zinc-900/60 pr-4">
+            <div className="flex items-center gap-1.5 text-[9px] text-amber-500 uppercase tracking-widest font-black">
+              <Sparkles className="w-3 h-3 text-amber-500 animate-pulse" /> Timewave Zero Monitor
+            </div>
+            <div className="text-white text-xs font-bold font-mono mt-1 flex justify-between">
+              <span>NOVELTY:</span>
+              <span className="text-cyan-400 font-extrabold">{currentNovelty}/100</span>
+            </div>
+            <div className="text-[9px] text-zinc-500 font-mono mt-0.5 uppercase">
+              {currentNovelty < 30 ? (
+                <span className="text-cyan-400 font-extrabold animate-pulse">● INFINITE RESONANCE</span>
+              ) : currentNovelty < 50 ? (
+                <span className="text-emerald-400">● DYNAMIC SYNTHESIS</span>
+              ) : currentNovelty < 70 ? (
+                <span className="text-zinc-400">● BIFURCATION REGIME</span>
+              ) : (
+                <span className="text-amber-500/80">● HABITUATED STASIS</span>
+              )}
+            </div>
+            <div className="mt-1.5 pt-1.5 border-t border-zinc-950 flex justify-between text-[9px] font-mono text-zinc-400">
+              <span>ESCHATON IN:</span>
+              <span className="text-red-400 font-black tracking-widest animate-pulse">{120 - gameState.turn} TURNS</span>
+            </div>
           </div>
-          {gameState.turnSummaries.map((summary, idx) => (
-            <button
-              key={summary.uniqueId || summary.turn}
-              onClick={() => {
-                setGameState(p => ({ ...p, turn: summary.turn }));
-              }}
-              className={`px-3 py-1.5 rounded-lg border flex flex-col items-center justify-center min-w-[50px] shrink-0 transition-all ${
-                gameState.turn === summary.turn 
-                  ? "bg-amber-500/10 border-amber-500 text-amber-500" 
-                  : "bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 text-zinc-400"
-              }`}
-            >
-              <span className="text-[10px] font-bold">Turn {summary.turn}</span>
-              <div className="flex gap-1 mt-1 text-[8px]">
-                {summary.hasWar && <span className="text-red-500 font-bold">⚔️</span>}
-                {summary.hasCityChange && <span className="text-amber-500 font-bold">🏰</span>}
-                {summary.hasTech && <span className="text-cyan-400 font-bold">🧪</span>}
-              </div>
-            </button>
-          ))}
-          {gameState.turnSummaries.length === 0 && (
-            <span className="text-zinc-600 text-xs italic">Play the simulation turns to populate history scrub timeline ticks...</span>
-          )}
+
+          {/* Middle Panel: Gorgeous SVG Fractal Chart */}
+          <div className="flex-1 h-full flex flex-col justify-center relative min-w-[300px]">
+            <div className="flex justify-between items-center text-[8px] font-mono text-zinc-500 uppercase tracking-widest mb-1">
+              <span>HABIT [STABILITY]</span>
+              <span className="text-zinc-600">CALIBRATION: SHELIAK SCALE-ZERO</span>
+              <span>NOVELTY [COMPLEXITY]</span>
+            </div>
+            
+            <div className="relative w-full h-[55px] bg-[#030307] rounded border border-zinc-900/80 overflow-hidden">
+              {/* Background horizontal reference lines */}
+              <div className="absolute top-[13px] left-0 right-0 h-[0.5px] bg-white/5 pointer-events-none" />
+              <div className="absolute top-[27px] left-0 right-0 h-[0.5px] border-t border-dashed border-white/5 pointer-events-none" />
+              <div className="absolute top-[41px] left-0 right-0 h-[0.5px] bg-white/5 pointer-events-none" />
+
+              {/* SVG Wave */}
+              <svg className="w-full h-full" viewBox="0 0 450 55" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="novelty-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Fill Area */}
+                <path d={areaD} fill="url(#novelty-grad)" />
+
+                {/* Outline Curve */}
+                <path d={lineD} fill="none" stroke="#22d3ee" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                {/* Current Turn vertical marker line */}
+                {(() => {
+                  const count = wavePoints.endTurn - wavePoints.startTurn;
+                  const currentX = ((gameState.turn - wavePoints.startTurn) / (count || 1)) * 450;
+                  return (
+                    <g>
+                      <line
+                        x1={currentX}
+                        y1="0"
+                        x2={currentX}
+                        y2="55"
+                        stroke="#ef4444"
+                        strokeWidth="1"
+                        strokeDasharray="2,2"
+                      />
+                      <circle
+                        cx={currentX}
+                        cy={((100 - currentNovelty) / 100) * 40 + 5}
+                        r="3.5"
+                        fill="#090d16"
+                        stroke="#22d3ee"
+                        strokeWidth="1.5"
+                        className="animate-pulse"
+                      />
+                    </g>
+                  );
+                })()}
+              </svg>
+            </div>
+            
+            {/* Under Chart: Turns index */}
+            <div className="flex justify-between text-[8px] font-mono text-zinc-500 mt-1">
+              <span>TURN {wavePoints.startTurn}</span>
+              <span className="text-cyan-400/80 font-bold">CURRENT: TURN {gameState.turn}</span>
+              <span>TURN {wavePoints.endTurn}</span>
+            </div>
+          </div>
+
+          {/* Right Panel: Scrollable Turn Scrubber */}
+          <div className="w-80 shrink-0 h-full border-l border-zinc-900 pl-4 flex flex-col justify-center">
+            <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">
+              Historical Chronology Archive
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none h-[42px] items-center">
+              {gameState.turnSummaries.map((summary) => (
+                <button
+                  key={summary.uniqueId || summary.turn}
+                  onClick={() => {
+                    setGameState(p => ({ ...p, turn: summary.turn }));
+                  }}
+                  className={`px-2 py-1 rounded border flex flex-col items-center justify-center min-w-[45px] shrink-0 transition-all cursor-pointer ${
+                    gameState.turn === summary.turn 
+                      ? "bg-amber-500/10 border-amber-500/40 text-amber-400 font-extrabold" 
+                      : "bg-zinc-950/40 border-zinc-900 hover:border-zinc-800 text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  <span className="text-[8px]">T:{summary.turn}</span>
+                  <div className="flex gap-0.5 mt-0.5 text-[6px]">
+                    {summary.hasWar && <span className="text-red-500">⚔️</span>}
+                    {summary.hasCityChange && <span className="text-amber-500">🏰</span>}
+                    {summary.hasTech && <span className="text-cyan-400">🧪</span>}
+                  </div>
+                </button>
+              ))}
+              {gameState.turnSummaries.length === 0 && (
+                <span className="text-zinc-600 text-[9px] italic">Simulate turns to archive history...</span>
+              )}
+            </div>
+          </div>
         </section>
 
       </div>
@@ -2787,6 +3923,14 @@ export default function App() {
                         <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700 font-semibold text-zinc-300">
                           🧪 {civ.researchTheme}
                         </span>
+                        {(() => {
+                          const status = getGeopoliticalStatus(civ, gameState);
+                          return (
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded-md border font-extrabold flex items-center gap-1 uppercase tracking-widest ${status.bg}`}>
+                              {status.icon} {status.label}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Faction counts */}
@@ -2934,6 +4078,16 @@ export default function App() {
                 }`}
               >
                 <Database className="w-3 h-3" /> Sheets Sync
+              </button>
+              <button
+                onClick={() => setSidebarTab("diplomacy")}
+                className={`text-[10px] font-bold font-display uppercase tracking-widest px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
+                  sidebarTab === "diplomacy"
+                    ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Handshake className="w-3 h-3" /> Diplomacy & Trade
               </button>
             </div>
             
@@ -3117,6 +4271,88 @@ export default function App() {
                   </div>
                 </div>
               )}
+            </div>
+          ) : sidebarTab === "diplomacy" ? (
+            <div className="flex-1 flex flex-col overflow-hidden text-xs space-y-2">
+              <div className="flex items-center justify-between shrink-0">
+                <span className="text-[10px] font-bold font-display uppercase text-zinc-400 tracking-wider">
+                  🤝 Diplomatic Ledger & Trade History
+                </span>
+                <span className="text-[8px] font-mono text-zinc-500">
+                  Turn {gameState.turn} Updates
+                </span>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1.5 scrollbar-thin">
+                {/* Active Treaties & Relationships */}
+                <div className="p-2 bg-zinc-900/40 rounded-lg border border-zinc-800/60 shrink-0">
+                  <h4 className="text-[8.5px] uppercase font-bold text-rose-400 tracking-wider mb-2">
+                    Active Faction Postures
+                  </h4>
+                  <div className="space-y-1.5">
+                    {gameState.civs.map(civ => {
+                      if (civ.isDead) return null;
+                      const isAtWar = activeWarsSummary.some(w => w.attacker.id === civ.id || w.defender.id === civ.id);
+                      
+                      return (
+                        <div key={civ.id} className="flex items-center justify-between p-1.5 rounded bg-zinc-950/60 border border-zinc-900">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: civ.color }} />
+                            <span className="font-semibold text-zinc-200 text-[10px]">{civ.name} ({civ.leader})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isAtWar ? (
+                              <span className="px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-[7px] font-bold text-red-400 uppercase tracking-wider animate-pulse">
+                                ⚔️ WAR
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-[7px] font-bold text-emerald-400 uppercase tracking-wider">
+                                🕊️ PEACE
+                              </span>
+                            )}
+                            <span className="text-[7.5px] font-mono text-zinc-500">
+                              Techs: {civ.researchedTechs.length}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Event History for Diplomacy & Trade */}
+                <div className="p-2 bg-zinc-900/40 rounded-lg border border-zinc-800/60">
+                  <h4 className="text-[8.5px] uppercase font-bold text-amber-500 tracking-wider mb-2">
+                    Diplomatic Chronicle & Trade Logs
+                  </h4>
+                  <div className="space-y-1.5">
+                    {gameState.events
+                      .filter(e => e.category === "DIPLOMACY" || e.headline.includes("TRADE") || e.headline.includes("PEACE") || e.headline.includes("WAR") || e.type === "SCIENCE_LEAP")
+                      .slice()
+                      .reverse()
+                      .slice(0, 15)
+                      .map((event) => (
+                        <div key={event.id} className="p-1.5 rounded bg-zinc-950/45 border border-zinc-900/70 text-[9px] space-y-1">
+                          <div className="flex items-center justify-between text-[7px] font-mono text-zinc-500">
+                            <span>TURN {event.turn}</span>
+                            <span>{new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          </div>
+                          <div className="font-bold text-zinc-300">
+                            {event.headline}
+                          </div>
+                          <p className="text-[8px] text-zinc-400 leading-normal">
+                            {event.summary}
+                          </p>
+                        </div>
+                      ))}
+                    {gameState.events.filter(e => e.category === "DIPLOMACY" || e.headline.includes("TRADE") || e.headline.includes("PEACE") || e.headline.includes("WAR")).length === 0 && (
+                      <div className="text-center py-4 text-zinc-600 font-mono text-[8.5px] italic">
+                        No active diplomatic updates or trade routes recorded yet. Let simulation turns process!
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden text-xs">

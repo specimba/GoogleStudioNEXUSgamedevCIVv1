@@ -86,6 +86,8 @@ export interface Unit {
   hasMoved: boolean;
   combatStrength: number;
   pathHistory?: { x: number; y: number }[];
+  xp?: number;
+  level?: number;
 }
 
 // Represents a civilization

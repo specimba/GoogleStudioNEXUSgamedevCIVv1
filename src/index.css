@@ -250,3 +250,44 @@
   animation: float-token-city 4.8s ease-in-out infinite;
 }
 
+/* Dynamic Trade Route Animations */
+@keyframes trade-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.trade-route-gold {
+  stroke: #fbbf24; /* Amber Gold */
+  stroke-width: 1.3;
+  stroke-dasharray: 5, 4;
+  animation: trade-flow 1.5s linear infinite;
+}
+
+.trade-route-science {
+  stroke: #38bdf8; /* Sky Blue Science */
+  stroke-width: 1.3;
+  stroke-dasharray: 5, 4;
+  animation: trade-flow 2s linear infinite;
+}
+
+/* Subtle Cinematic Screen Shake */
+@keyframes subtle-shake {
+  0% { transform: translate(0, 0); }
+  10% { transform: translate(-3px, 2px); }
+  20% { transform: translate(3px, -1px); }
+  30% { transform: translate(-2px, -2px); }
+  40% { transform: translate(2px, 2px); }
+  50% { transform: translate(-3px, 1px); }
+  60% { transform: translate(3px, 2px); }
+  70% { transform: translate(-1px, -1px); }
+  80% { transform: translate(2px, -2px); }
+  90% { transform: translate(-1px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+.animate-shake {
+  animation: subtle-shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+

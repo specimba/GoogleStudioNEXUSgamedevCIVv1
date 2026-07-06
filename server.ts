@@ -360,6 +360,7 @@ Rules of Diplomacy & War:
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        temperature: 1.0,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -539,6 +540,7 @@ User's Query: "${message}"
       contents: contextPrompt,
       config: {
         tools: [{ googleSearch: {} }],
+        temperature: 0.8,
         systemInstruction: `You are the specific civilization leader in a spectator strategy game simulation. You roleplay perfectly and answer queries utilizing live data. Speak with appropriate historical authority and incorporate Google Search results seamlessly without showing raw markdown urls.`
       }
     }));
